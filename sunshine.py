@@ -20,6 +20,7 @@ __all__ = [
   # This module does not export any symbols; all sumbols are private/internal.
 ]
 
+from license_expression import get_spdx_licensing, OR, LicenseSymbol
 import json
 import argparse
 import os
@@ -32,7 +33,6 @@ import csv
 from decimal import Decimal
 if __name__ == "__web__":
     from js import writeToLog, fetchDataSync
-
 
 VERSION = "0.9"
 NAME = "Sunshine"
@@ -1070,6 +1070,25 @@ def parse_licenses(component):
                     licenses.add(license["license"]["id"])
                 elif "name" in license["license"]:
                     licenses.add(license["license"]["name"])
+        if license.get("expression") is not None:
+            expr = license["expression"]
+            from pprint import pprint
+            try:
+                parsed = get_spdx_licensing().parse(expr)
+                # we only care about the simple case of OR expression
+                if isinstance(parsed, OR):
+                    for arg in parsed.args:
+                        if isinstance(arg, LicenseSymbol):
+                            licenses.add(arg.key)
+                        else:
+                            # if we have nested expressions, we just store them as strings
+                            licenses.add(str(arg))
+                else:
+                    # if expression is not a simple OR, we just store it as a string
+                    licenses.add(expr)
+            except Exception as e:
+                custom_print(f"WARNING: could not parse license expression '{expr}'. Adding it as string-expression.")
+                licenses.add(expr)
     return sorted(list(licenses))
 
 
